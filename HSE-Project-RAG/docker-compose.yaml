@@ -1,9 +1,9 @@
 
 services:
-  backend:
+  bot:
     build:
-      context: ./backend
-    container_name: backend
+      context: ./bot
+    container_name: bot
     env_file:
       - .env
     ports:
@@ -11,10 +11,10 @@ services:
     networks:
       - app-network
 
-  frontend:
+  app:
     build:
-      context: ./frontend
-    container_name: frontend
+      context: ./app
+    container_name: app
     env_file:
       - .env
     depends_on:
