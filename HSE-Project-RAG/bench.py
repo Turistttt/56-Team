@@ -21,7 +21,12 @@ class Bench:
         sparse (bool): Flag indicating whether sparse embeddings are used.
     """
 
-    def __init__(self, model_name="all-MiniLM-L6-v2", device="cuda"):
+    def __init__(self,
+                 model_name="all-MiniLM-L6-v2",
+                 device="cuda",
+                 m = 16,
+                 ef_construct = 100,
+                 full_scan_threshold = 0):
         """
         Initializes the Bench class.
 
@@ -39,6 +44,9 @@ class Bench:
         self.sparse_model_list = ['prithvida/Splade_PP_en_v1', "Qdrant/bm25"]
         self.dense_model_list = ["all-MiniLM-L6-v2", 'intfloat/multilingual-e5-small', 'all-mpnet-base-v2']
         self.sparse = False
+        self.m = m
+        self.full_scan_threshold = full_scan_threshold
+        self.ef_construct = ef_construct
 
     def prepare_collection(self):
         """
@@ -75,7 +83,9 @@ class Bench:
                     size=self.model.get_sentence_embedding_dimension(),
                     distance=Distance.COSINE
                 )
-            }
+
+            },
+            hnsw_config={"m" : self.m,"ef_construct" : self.ef_construct, 'full_scan_threshold':self.full_scan_threshold}
         )
 
         self.client.upload_points(
@@ -112,7 +122,8 @@ class Bench:
             vectors_config={},
             sparse_vectors_config={
                 self.model_name: models.SparseVectorParams(modifier=models.Modifier.IDF)
-            }
+            },
+            hnsw_config = {"m": self.m, "ef_construct": self.ef_construct, 'full_scan_threshold':self.full_scan_threshold}
         )
 
         self.client.upload_points(
