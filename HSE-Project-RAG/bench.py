@@ -23,10 +23,11 @@ class Bench:
 
     def __init__(self,
                  model_name="all-MiniLM-L6-v2",
-                 device="cuda",
+                 model_type = 'sparse',
+                 device="cpu",
                  m = 16,
                  ef_construct = 100,
-                 full_scan_threshold = 0):
+                 full_scan_threshold = 10):
         """
         Initializes the Bench class.
 
@@ -35,15 +36,12 @@ class Bench:
             device (str): Device for computation. Defaults to "cuda".
         """
         self.model_name = model_name
+        self.model_type = model_type
         self.device = device
         self.client = QdrantClient()
         self.dataset = pd.read_parquet(
             'hf://datasets/neural-bridge/rag-dataset-12000/data/train-00000-of-00001-9df3a936e1f63191.parquet'
         ).dropna().reset_index(drop=True)
-
-        self.sparse_model_list = ['prithvida/Splade_PP_en_v1', "Qdrant/bm25"]
-        self.dense_model_list = ["all-MiniLM-L6-v2", 'intfloat/multilingual-e5-small', 'all-mpnet-base-v2']
-        self.sparse = False
         self.m = m
         self.full_scan_threshold = full_scan_threshold
         self.ef_construct = ef_construct
@@ -52,12 +50,11 @@ class Bench:
         """
         Prepares the Qdrant collection based on the type of model (sparse or dense).
         """
-        if self.model_name in self.dense_model_list:
+        if self.model_type == 'dense':
             self.prepare_dense_collection()
-        elif self.model_name in self.sparse_model_list:
-            self.sparse = True
+        elif self.model_type == 'sparse':
             self.prepare_sparse_collection()
-
+            
     def prepare_dense_collection(self):
         """
         Prepares a collection with dense embeddings.
@@ -83,9 +80,10 @@ class Bench:
                     size=self.model.get_sentence_embedding_dimension(),
                     distance=Distance.COSINE
                 )
-
             },
-            hnsw_config={"m" : self.m,"ef_construct" : self.ef_construct, 'full_scan_threshold':self.full_scan_threshold}
+            hnsw_config = models.HnswConfigDiff(m = self.m,
+                                                ef_construct = self.ef_construct,
+                                                full_scan_threshold = self.full_scan_threshold)
         )
 
         self.client.upload_points(
@@ -122,8 +120,10 @@ class Bench:
             vectors_config={},
             sparse_vectors_config={
                 self.model_name: models.SparseVectorParams(modifier=models.Modifier.IDF)
-            },
-            hnsw_config = {"m": self.m, "ef_construct": self.ef_construct, 'full_scan_threshold':self.full_scan_threshold}
+            } if self.model_name == 'bm25' else None,
+            hnsw_config = models.HnswConfigDiff(m = self.m,
+                                                ef_construct = self.ef_construct,
+                                                full_scan_threshold = self.full_scan_threshold)
         )
 
         self.client.upload_points(
@@ -186,7 +186,7 @@ class Bench:
         Returns:
             pd.DataFrame: A DataFrame containing evaluation metrics.
         """
-        if self.sparse:
+        if self.model_type == 'sparse':
             search_results = self.get_sparse_scores()
         else:
             search_results = self.get_dense_scores()
