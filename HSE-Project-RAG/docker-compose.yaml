@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  bot:
+    build:
+      context: ./bot
+    container_name: bot
+    env_file:
+      - .env
+    ports:
+      - "8001:8001"
+    networks:
+      - app-network
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: ./app
+    container_name: app
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
